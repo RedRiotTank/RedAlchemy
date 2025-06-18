@@ -36,6 +36,8 @@ jobs:
           script: |
             sudo rm -rf /opt/redalchemy/frontend/*
             sudo mkdir -p /opt/redalchemy/frontend/scripts
+            sudo chown -R $USER:$USER /opt/redalchemy/frontend
+            sudo chmod -R 755 /opt/redalchemy/frontend
 
       - name: Deploy dist folder via SCP
         uses: appleboy/scp-action@v0.1.7
