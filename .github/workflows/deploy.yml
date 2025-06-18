@@ -34,7 +34,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT }}
           source: "dist/"
-          target: "/var/www/redalchemy/"
+          target: "/opt/redalchemy/frontend/"
           strip_components: 1
 
       - name: Deploy compiled scripts via SCP
@@ -45,7 +45,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT }}
           source: "public/scripts/interaction.js"
-          target: "/var/www/redalchemy/scripts/"
+          target: "/opt/redalchemy/frontend/scripts/"
 
       - name: Reload Nginx
         uses: appleboy/ssh-action@v1.0.0
