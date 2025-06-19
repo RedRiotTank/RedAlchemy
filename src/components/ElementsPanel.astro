@@ -1,20 +1,21 @@
 ---
 import Element from "./Element.astro";
 
-const elements = [
-  { name: "water", emoji: "💧" },
-  { name: "fire", emoji: "🔥" },
-  { name: "dirt", emoji: "🌱" },
-  { name: "air", emoji: "🌬️" },
-];
+const response = await fetch("http://redriottank.com:3000/elements/base");
+const elements = await response.json();
 ---
 
 <div class="w-full md:w-80 bg-gray-800 rounded-xl p-6 min-h-[70vh]">
   <h2 class="text-2xl font-bold mb-6 text-yellow-400">Elements</h2>
   <div class="grid grid-cols-2 gap-3" id="elements-panel">
     {
-      elements.map((element) => (
-        <Element name={element.name} emoji={element.emoji} draggable={true} />
+      elements.map((element: any) => (
+        <Element
+          name={element.name.toLowerCase()}
+          uuid={element.id}
+          emoji={element.icon}
+          draggable={true}
+        />
       ))
     }
   </div>
