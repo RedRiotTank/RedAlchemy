@@ -1,21 +1,35 @@
 type ElementInfo = {
   name: string;
   emoji: string;
+  uuid: string;
 };
 
-const baseElements = ["water", "fire", "dirt", "air"];
-const combinations: Record<string, ElementInfo> = {
-  "water+fire": { name: "steam", emoji: "💨" },
-  "water+dirt": { name: "mud", emoji: "🪵" },
-};
+const API_BASE = "http://redriottank.com:3000";
 
-const discovered = new Set(baseElements);
+const baseElements = new Set<string>();
+const discovered = new Set<string>();
 const panel = document.getElementById("elements-panel")!;
 const canvas = document.getElementById("combination-canvas")!;
 const instructions = document.getElementById("canvas-instructions")!;
 const alertBox = document.getElementById("discovery-alert")!;
 const alertName = document.getElementById("discovered-element")!;
 let hoverCircle: HTMLDivElement | null = null;
+
+async function loadBaseElements() {
+  try {
+    const response = await fetch(`${API_BASE}/elements/base`);
+    const elements: ElementInfo[] = await response.json();
+
+    elements.forEach((element) => {
+      baseElements.add(element.uuid);
+      discovered.add(element.name.toLowerCase());
+    });
+  } catch (error) {
+    console.error("Error loading base elements:", error);
+  }
+}
+
+loadBaseElements();
 
 function normalizeKey(a: string, b: string) {
   return [a, b].sort().join("+");
@@ -25,7 +39,8 @@ function createCanvasElement(
   name: string,
   emoji: string,
   x: number,
-  y: number
+  y: number,
+  uuid: string
 ): HTMLDivElement {
   const el = document.createElement("div");
   el.className =
@@ -33,6 +48,7 @@ function createCanvasElement(
   el.style.left = `${x}px`;
   el.style.top = `${y}px`;
   el.dataset.element = name;
+  el.dataset.uuid = uuid;
 
   el.innerHTML = `<span class="text-2xl">${emoji}</span><span class="capitalize">${name}</span>`;
   makeDraggableInCanvas(el);
@@ -43,24 +59,22 @@ function createCanvasElement(
 function makeDraggableInCanvas(el: HTMLDivElement) {
   let offsetX = 0,
     offsetY = 0;
-  let currentX = 0,
-    currentY = 0;
 
   el.onmousedown = (e) => {
     offsetX = e.offsetX;
     offsetY = e.offsetY;
 
-    function onMove(ev: MouseEvent) {
-      currentX = ev.pageX - canvas.offsetLeft - offsetX;
-      currentY = ev.pageY - canvas.offsetTop - offsetY;
+    const onMove = (ev: MouseEvent) => {
+      const currentX = ev.pageX - canvas.offsetLeft - offsetX;
+      const currentY = ev.pageY - canvas.offsetTop - offsetY;
 
       el.style.left = `${currentX}px`;
       el.style.top = `${currentY}px`;
 
       showHoverIfNear(el);
-    }
+    };
 
-    function onUp() {
+    const onUp = () => {
       document.removeEventListener("mousemove", onMove);
       document.removeEventListener("mouseup", onUp);
 
@@ -69,7 +83,7 @@ function makeDraggableInCanvas(el: HTMLDivElement) {
         tryFusion(el, fusionTarget);
       }
       removeHoverCircle();
-    }
+    };
 
     document.addEventListener("mousemove", onMove);
     document.addEventListener("mouseup", onUp);
@@ -79,7 +93,6 @@ function makeDraggableInCanvas(el: HTMLDivElement) {
 function showHoverIfNear(draggingEl: HTMLDivElement) {
   const target = getNearElement(draggingEl);
   if (target) {
-    const rect = target.getBoundingClientRect();
     if (!hoverCircle) {
       hoverCircle = document.createElement("div");
       hoverCircle.className =
@@ -94,10 +107,8 @@ function showHoverIfNear(draggingEl: HTMLDivElement) {
 }
 
 function removeHoverCircle() {
-  if (hoverCircle) {
-    hoverCircle.remove();
-    hoverCircle = null;
-  }
+  hoverCircle?.remove();
+  hoverCircle = null;
 }
 
 function getNearElement(el: HTMLDivElement): HTMLDivElement | null {
@@ -110,7 +121,7 @@ function getNearElement(el: HTMLDivElement): HTMLDivElement | null {
     const rect2 = other.getBoundingClientRect();
     const dx = rect1.left - rect2.left;
     const dy = rect1.top - rect2.top;
-    const distance = Math.sqrt(dx * dx + dy * dy);
+    const distance = Math.hypot(dx, dy);
 
     if (distance < 50) return other;
   }
@@ -118,48 +129,74 @@ function getNearElement(el: HTMLDivElement): HTMLDivElement | null {
   return null;
 }
 
-function tryFusion(elA: HTMLDivElement, elB: HTMLDivElement) {
-  const nameA = elA.dataset.element!;
-  const nameB = elB.dataset.element!;
-  const comboKey = normalizeKey(nameA, nameB);
-  const result = combinations[comboKey];
+async function tryFusion(elA: HTMLDivElement, elB: HTMLDivElement) {
+  const uuidA = elA.dataset.uuid!;
+  const uuidB = elB.dataset.uuid!;
 
-  if (!result || discovered.has(result.name)) return;
+  try {
+    const response = await fetch(
+      `${API_BASE}/fusion?id1=${uuidA}&id2=${uuidB}`
+    );
 
-  discovered.add(result.name);
-  elA.remove();
-  elB.remove();
+    if (!response.ok) {
+      console.log("No fusion possible for these elements");
+      return;
+    }
 
-  createCanvasElement(
-    result.name,
-    result.emoji,
-    parseInt(elA.style.left) + 40,
-    parseInt(elA.style.top) + 40
-  );
-  createPanelElement(result.name, result.emoji);
+    const result: ElementInfo & { id: string; icon: string } =
+      await response.json();
+    const resultName = result.name.toLowerCase();
 
-  alertName.textContent = `${result.emoji} ${result.name}`;
-  alertBox.classList.remove("hidden");
-  setTimeout(() => alertBox.classList.add("hidden"), 2000);
+    if (discovered.has(resultName)) {
+      console.log("Element already discovered:", resultName);
+      return;
+    }
+
+    discovered.add(resultName);
+    elA.remove();
+    elB.remove();
+
+    createCanvasElement(
+      resultName,
+      result.icon,
+      parseInt(elA.style.left) + 40,
+      parseInt(elA.style.top) + 40,
+      result.id
+    );
+
+    createPanelElement(resultName, result.icon, result.id);
+
+    alertName.textContent = `${result.icon} ${result.name}`;
+    alertBox.classList.remove("hidden");
+    setTimeout(() => alertBox.classList.add("hidden"), 2000);
+  } catch (error) {
+    console.error("Error checking fusion:", error);
+  }
 }
 
-function createPanelElement(name: string, emoji: string) {
+function setDragData(e: DragEvent, name: string, uuid: string) {
+  e.dataTransfer?.setData("text/plain", name);
+  e.dataTransfer?.setData("uuid", uuid);
+}
+
+function createPanelElement(name: string, emoji: string, uuid: string) {
   const el = document.createElement("div");
   el.dataset.element = name;
+  el.dataset.uuid = uuid;
   el.className =
     "bg-gray-800 border border-gray-600 px-5 py-3 rounded-lg cursor-grab select-none text-xl flex items-center gap-2";
   el.draggable = true;
   el.innerHTML = `<span class="text-2xl">${emoji}</span><span class="capitalize">${name}</span>`;
-  el.addEventListener("dragstart", (e) => {
-    e.dataTransfer?.setData("text/plain", name);
-  });
+
+  el.addEventListener("dragstart", (e) => setDragData(e, name, uuid));
+
   panel.appendChild(el);
 }
 
 panel.querySelectorAll<HTMLElement>("[data-element]").forEach((el) => {
-  el.addEventListener("dragstart", (e) => {
-    e.dataTransfer?.setData("text/plain", el.dataset.element!);
-  });
+  el.addEventListener("dragstart", (e) =>
+    setDragData(e, el.dataset.element!, el.dataset.uuid!)
+  );
 });
 
 canvas.addEventListener("dragover", (e) => e.preventDefault());
@@ -167,12 +204,13 @@ canvas.addEventListener("dragover", (e) => e.preventDefault());
 canvas.addEventListener("drop", (e) => {
   e.preventDefault();
   const name = e.dataTransfer?.getData("text/plain");
-  if (!name) return;
+  const uuid = e.dataTransfer?.getData("uuid");
+
+  if (!name || !uuid) return;
 
   const el = panel.querySelector(`[data-element="${name}"]`);
   const emoji = el?.querySelector("span")?.textContent || "❓";
 
   instructions.classList.add("hidden");
-
-  createCanvasElement(name, emoji, e.offsetX, e.offsetY);
+  createCanvasElement(name, emoji, e.offsetX, e.offsetY, uuid);
 });
