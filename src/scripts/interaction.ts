@@ -4,7 +4,7 @@ type ElementInfo = {
   uuid: string;
 };
 
-const API_BASE = "http://redriottank.com:3000";
+const API_BASE = "https://redalchemy.redriottank.com/api";
 
 const baseElements = new Set<string>();
 const discovered = new Set<string>();
