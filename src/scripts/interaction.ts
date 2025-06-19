@@ -61,8 +61,9 @@ function makeDraggableInCanvas(el: HTMLDivElement) {
     offsetY = 0;
 
   el.onmousedown = (e) => {
-    offsetX = e.offsetX;
-    offsetY = e.offsetY;
+    const rect = canvas.getBoundingClientRect();
+    offsetX = e.clientX - rect.left - el.offsetLeft;
+    offsetY = e.clientY - rect.top - el.offsetTop;
 
     const onMove = (ev: MouseEvent) => {
       const currentX = ev.pageX - canvas.offsetLeft - offsetX;
@@ -212,5 +213,21 @@ canvas.addEventListener("drop", (e) => {
   const emoji = el?.querySelector("span")?.textContent || "❓";
 
   instructions.classList.add("hidden");
-  createCanvasElement(name, emoji, e.offsetX, e.offsetY, uuid);
+
+  const canvasRect = canvas.getBoundingClientRect();
+  const rawX = e.clientX - canvasRect.left;
+  const rawY = e.clientY - canvasRect.top;
+
+  const temp = document.createElement("div");
+  temp.className =
+    "absolute bg-gray-800 border border-gray-600 px-4 py-2 rounded-lg cursor-move select-none text-xl flex items-center gap-2";
+  temp.style.visibility = "hidden";
+  temp.innerHTML = `<span class="text-2xl">${emoji}</span><span class="capitalize">${name}</span>`;
+  canvas.appendChild(temp);
+
+  const offsetX = temp.offsetWidth / 2;
+  const offsetY = temp.offsetHeight / 2;
+  temp.remove();
+
+  createCanvasElement(name, emoji, rawX - offsetX, rawY - offsetY, uuid);
 });
