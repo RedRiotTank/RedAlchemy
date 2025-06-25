@@ -1,7 +1,11 @@
 import { useState, useEffect, useRef } from "preact/hooks";
 import Canvas from "./Canvas.preact";
 import ElementsPanel from "./ElementsPanel.preact";
-import { fetchBaseElements, fuseElements } from "../../lib/alchemy";
+import {
+  fetchBaseElements,
+  fuseElements,
+  generateInstanceId,
+} from "../../lib/alchemy";
 import type { AlchemyElement, CanvasElement } from "../../lib/alchemy";
 
 export default function Game() {
@@ -38,12 +42,14 @@ export default function Game() {
     setDiscovered((prev) => [...prev, newElement]);
     setElements((prev) => [...prev, newElement]);
 
+    // Agregar nuevo elemento al canvas con instanceId único
     setCanvasElements((prev) => [
       ...prev,
       {
         ...newElement,
         x: window.innerWidth / 2 - 50,
         y: window.innerHeight / 2 - 50,
+        instanceId: generateInstanceId(),
       } as CanvasElement,
     ]);
   };
@@ -55,32 +61,37 @@ export default function Game() {
     return await fuseElements(elementA, elementB);
   };
 
+  // Iniciar arrastre desde el panel
   const handleStartDragFromPanel = (element: AlchemyElement, e: MouseEvent) => {
     draggingFromPanelRef.current = element;
 
+    // Crear elemento fantasma
     ghostElementRef.current = document.createElement("div");
     ghostElementRef.current.className =
-      "fixed text-4xl z-50 pointer-events-none transform -translate-x-1/2 -translate-y-1/2";
+      "fixed text-4xl z-50 pointer-events-none";
     ghostElementRef.current.textContent = element.emoji;
-    ghostElementRef.current.style.left = `${e.clientX}px`;
-    ghostElementRef.current.style.top = `${e.clientY}px`;
-    ghostElementRef.current.style.willChange = "transform";
+    ghostElementRef.current.style.left = `${e.clientX - 24}px`;
+    ghostElementRef.current.style.top = `${e.clientY - 24}px`;
     document.body.appendChild(ghostElementRef.current);
 
+    // Agregar listeners globales
     window.addEventListener("mousemove", handleGhostMouseMove);
     window.addEventListener("mouseup", handleGhostMouseUp);
   };
 
-  const handleGhostMouseMove = (e: globalThis.MouseEvent) => {
+  // Mover elemento fantasma
+  const handleGhostMouseMove = (e: MouseEvent) => {
     if (ghostElementRef.current) {
-      ghostElementRef.current.style.left = `${e.clientX}px`;
-      ghostElementRef.current.style.top = `${e.clientY}px`;
+      ghostElementRef.current.style.left = `${e.clientX - 24}px`;
+      ghostElementRef.current.style.top = `${e.clientY - 24}px`;
     }
   };
 
+  // Soltar elemento fantasma
   const handleGhostMouseUp = (e: MouseEvent) => {
     if (!draggingFromPanelRef.current || !canvasRef.current) return;
 
+    // Verificar si se soltó sobre el canvas
     const canvasRect = canvasRef.current.getBoundingClientRect();
     if (
       e.clientX >= canvasRect.left &&
@@ -88,22 +99,26 @@ export default function Game() {
       e.clientY >= canvasRect.top &&
       e.clientY <= canvasRect.bottom
     ) {
+      // Agregar al canvas con instanceId único
       setCanvasElements((prev) => [
         ...prev,
         {
           ...draggingFromPanelRef.current,
           x: e.clientX - canvasRect.left - 24,
           y: e.clientY - canvasRect.top - 24,
+          instanceId: generateInstanceId(),
         } as CanvasElement,
       ]);
     }
 
+    // Limpiar
     if (ghostElementRef.current) {
       document.body.removeChild(ghostElementRef.current);
       ghostElementRef.current = null;
     }
     draggingFromPanelRef.current = null;
 
+    // Remover listeners
     window.removeEventListener("mousemove", handleGhostMouseMove);
     window.removeEventListener("mouseup", handleGhostMouseUp);
   };

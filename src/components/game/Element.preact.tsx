@@ -2,7 +2,7 @@ import type { CanvasElement } from "../../lib/alchemy";
 
 interface ElementProps {
   element: CanvasElement;
-  onMouseDown: (id: string, e: MouseEvent) => void;
+  onMouseDown: (instanceId: string, e: MouseEvent) => void;
   isDragging: boolean;
   isHoverTarget: boolean;
 }
@@ -15,7 +15,7 @@ export default function Element({
 }: ElementProps) {
   return (
     <div
-      data-canvas-id={element.id}
+      data-canvas-id={element.instanceId}
       className={`absolute rounded-full cursor-move select-none shadow-lg flex items-center justify-center
         ${
           isDragging
@@ -39,7 +39,7 @@ export default function Element({
       }}
       onMouseDown={(e) => {
         e.stopPropagation();
-        onMouseDown(element.id, e as unknown as MouseEvent);
+        onMouseDown(element.instanceId, e as unknown as MouseEvent);
       }}
     >
       {element.emoji}

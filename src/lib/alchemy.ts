@@ -10,6 +10,7 @@ export interface AlchemyElement {
 export interface CanvasElement extends AlchemyElement {
   x: number;
   y: number;
+  instanceId: string; // Identificador único por instancia
 }
 
 export async function fetchBaseElements(): Promise<AlchemyElement[]> {
@@ -39,4 +40,11 @@ export async function fuseElements(
     console.error("Fusion error:", error);
     return null;
   }
+}
+
+// Función para generar IDs únicos
+export function generateInstanceId() {
+  return (
+    "element-" + Date.now() + "-" + Math.random().toString(36).substr(2, 9)
+  );
 }

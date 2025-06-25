@@ -19,41 +19,42 @@ export default function Canvas({
   onDiscovery,
 }: CanvasProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
-  const [draggingId, setDraggingId] = useState<string | null>(null);
-  const [hoverTarget, setHoverTarget] = useState<string | null>(null);
+  const [draggingInstanceId, setDraggingInstanceId] = useState<string | null>(
+    null
+  );
+  const [hoverTargetInstanceId, setHoverTargetInstanceId] = useState<
+    string | null
+  >(null);
   const dragOffset = useRef({ x: 0, y: 0 });
   const lastPosition = useRef({ x: 0, y: 0 });
   const animationFrame = useRef<number | null>(null);
   const proximityCheck = useRef(0);
 
   // Usaremos requestAnimationFrame para actualizaciones suaves
-  const handleMouseDown = (id: string, e: globalThis.MouseEvent) => {
-    const element = elements.find((el) => el.id === id);
+  const handleMouseDown = (instanceId: string, e: MouseEvent) => {
+    const element = elements.find((el) => el.instanceId === instanceId);
     if (!element || !canvasRef.current) return;
 
     const target = e.currentTarget as HTMLDivElement;
     const rect = target.getBoundingClientRect();
 
-    // Calcular offset relativo al punto de clic dentro del elemento
     dragOffset.current = {
       x: e.clientX - rect.left,
       y: e.clientY - rect.top,
     };
 
-    setDraggingId(id);
+    setDraggingInstanceId(instanceId);
     lastPosition.current = { x: element.x, y: element.y };
 
-    // Cancelar cualquier animación pendiente
     if (animationFrame.current) {
       cancelAnimationFrame(animationFrame.current);
       animationFrame.current = null;
     }
   };
 
-  const handleMouseMove = (e: globalThis.MouseEvent) => {
-    if (!draggingId || !canvasRef.current) return;
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!draggingInstanceId || !canvasRef.current) return;
 
-    // Usar requestAnimationFrame para mejor rendimiento
     if (!animationFrame.current) {
       animationFrame.current = requestAnimationFrame(() => {
         const canvasRect = canvasRef.current!.getBoundingClientRect();
@@ -62,10 +63,9 @@ export default function Canvas({
 
         // Actualizar posición solo del elemento arrastrado
         const updatedElements = elements.map((el) =>
-          el.id === draggingId ? { ...el, x, y } : el
+          el.instanceId === draggingInstanceId ? { ...el, x, y } : el
         );
 
-        // Actualizar estado solo si es necesario
         if (x !== lastPosition.current.x || y !== lastPosition.current.y) {
           setElements(updatedElements);
           lastPosition.current = { x, y };
@@ -73,15 +73,17 @@ export default function Canvas({
 
         // Verificar fusiones (con throttling)
         if (Date.now() - proximityCheck.current > 50) {
-          const currentElement = elements.find((el) => el.id === draggingId);
+          const currentElement = elements.find(
+            (el) => el.instanceId === draggingInstanceId
+          );
           if (currentElement) {
+            // Buscar elementos cercanos excluyendo el actual
             const nearElement = findNearElement(
               { ...currentElement, x, y },
-              elements.filter((el) => el.id !== draggingId)
+              elements.filter((el) => el.instanceId !== draggingInstanceId)
             );
-            setHoverTarget((prev) =>
-              nearElement?.id === prev ? prev : nearElement?.id || null
-            );
+
+            setHoverTargetInstanceId(nearElement?.instanceId || null);
           }
           proximityCheck.current = Date.now();
         }
@@ -91,23 +93,28 @@ export default function Canvas({
     }
   };
 
-  const handleMouseUp = async (e: globalThis.MouseEvent) => {
-    if (!draggingId) return;
+  const handleMouseUp = async (e: MouseEvent) => {
+    if (!draggingInstanceId) return;
 
-    // Limpiar listeners
     window.removeEventListener("mousemove", handleMouseMove);
     window.removeEventListener("mouseup", handleMouseUp);
 
-    if (hoverTarget) {
-      const elementA = elements.find((el) => el.id === draggingId);
-      const elementB = elements.find((el) => el.id === hoverTarget);
+    if (hoverTargetInstanceId) {
+      const elementA = elements.find(
+        (el) => el.instanceId === draggingInstanceId
+      );
+      const elementB = elements.find(
+        (el) => el.instanceId === hoverTargetInstanceId
+      );
 
       if (elementA && elementB) {
         const result = await onFusion(elementA, elementB);
         if (result) {
           // Eliminar elementos fusionados
           const filteredElements = elements.filter(
-            (el) => el.id !== elementA.id && el.id !== elementB.id
+            (el) =>
+              el.instanceId !== elementA.instanceId &&
+              el.instanceId !== elementB.instanceId
           );
           setElements(filteredElements);
 
@@ -117,8 +124,8 @@ export default function Canvas({
       }
     }
 
-    setDraggingId(null);
-    setHoverTarget(null);
+    setDraggingInstanceId(null);
+    setHoverTargetInstanceId(null);
 
     if (animationFrame.current) {
       cancelAnimationFrame(animationFrame.current);
@@ -126,7 +133,7 @@ export default function Canvas({
     }
   };
 
-  // Función auxiliar para encontrar elementos cercanos (optimizada)
+  // Función auxiliar para encontrar elementos cercanos
   const findNearElement = (
     current: CanvasElement,
     elements: CanvasElement[]
@@ -142,11 +149,10 @@ export default function Canvas({
   };
 
   useEffect(() => {
-    const handleGlobalMouseMove = (e: globalThis.MouseEvent) =>
-      handleMouseMove(e);
-    const handleGlobalMouseUp = (e: globalThis.MouseEvent) => handleMouseUp(e);
+    const handleGlobalMouseMove = (e: MouseEvent) => handleMouseMove(e);
+    const handleGlobalMouseUp = (e: MouseEvent) => handleMouseUp(e);
 
-    if (draggingId) {
+    if (draggingInstanceId) {
       window.addEventListener("mousemove", handleGlobalMouseMove);
       window.addEventListener("mouseup", handleGlobalMouseUp);
     }
@@ -160,7 +166,7 @@ export default function Canvas({
         animationFrame.current = null;
       }
     };
-  }, [draggingId, elements, hoverTarget]);
+  }, [draggingInstanceId, elements, hoverTargetInstanceId]);
 
   return (
     <div
@@ -169,21 +175,25 @@ export default function Canvas({
     >
       {elements.map((element) => (
         <Element
-          key={element.id}
+          key={element.instanceId}
           element={element}
           onMouseDown={handleMouseDown}
-          isDragging={draggingId === element.id}
-          isHoverTarget={hoverTarget === element.id}
+          isDragging={draggingInstanceId === element.instanceId}
+          isHoverTarget={hoverTargetInstanceId === element.instanceId}
         />
       ))}
 
-      {hoverTarget && (
+      {hoverTargetInstanceId && (
         <div
           className="absolute w-16 h-16 border-4 border-yellow-400 rounded-full pointer-events-none"
           style={{
             transform: `translate(${
-              elements.find((e) => e.id === hoverTarget)!.x - 8
-            }px, ${elements.find((e) => e.id === hoverTarget)!.y - 8}px)`,
+              elements.find((e) => e.instanceId === hoverTargetInstanceId)!.x -
+              8
+            }px, ${
+              elements.find((e) => e.instanceId === hoverTargetInstanceId)!.y -
+              8
+            }px)`,
             willChange: "transform",
           }}
         />
