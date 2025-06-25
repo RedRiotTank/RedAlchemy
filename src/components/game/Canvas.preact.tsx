@@ -9,7 +9,10 @@ interface CanvasProps {
     a: CanvasElement,
     b: CanvasElement
   ) => Promise<AlchemyElement | null>;
-  onDiscovery: (element: AlchemyElement) => void;
+  onDiscovery: (
+    element: AlchemyElement,
+    position?: { x: number; y: number }
+  ) => void;
 }
 
 export default function Canvas({
@@ -30,7 +33,6 @@ export default function Canvas({
   const animationFrame = useRef<number | null>(null);
   const proximityCheck = useRef(0);
 
-  // Usaremos requestAnimationFrame para actualizaciones suaves
   const handleMouseDown = (instanceId: string, e: MouseEvent) => {
     const element = elements.find((el) => el.instanceId === instanceId);
     if (!element || !canvasRef.current) return;
@@ -61,7 +63,6 @@ export default function Canvas({
         const x = e.clientX - canvasRect.left - dragOffset.current.x;
         const y = e.clientY - canvasRect.top - dragOffset.current.y;
 
-        // Actualizar posición solo del elemento arrastrado
         const updatedElements = elements.map((el) =>
           el.instanceId === draggingInstanceId ? { ...el, x, y } : el
         );
@@ -71,13 +72,11 @@ export default function Canvas({
           lastPosition.current = { x, y };
         }
 
-        // Verificar fusiones (con throttling)
         if (Date.now() - proximityCheck.current > 50) {
           const currentElement = elements.find(
             (el) => el.instanceId === draggingInstanceId
           );
           if (currentElement) {
-            // Buscar elementos cercanos excluyendo el actual
             const nearElement = findNearElement(
               { ...currentElement, x, y },
               elements.filter((el) => el.instanceId !== draggingInstanceId)
@@ -110,7 +109,6 @@ export default function Canvas({
       if (elementA && elementB) {
         const result = await onFusion(elementA, elementB);
         if (result) {
-          // Eliminar elementos fusionados
           const filteredElements = elements.filter(
             (el) =>
               el.instanceId !== elementA.instanceId &&
@@ -118,8 +116,7 @@ export default function Canvas({
           );
           setElements(filteredElements);
 
-          // Agregar nuevo elemento
-          onDiscovery(result);
+          onDiscovery(result, { x: elementB.x, y: elementB.y });
         }
       }
     }
@@ -133,7 +130,6 @@ export default function Canvas({
     }
   };
 
-  // Función auxiliar para encontrar elementos cercanos
   const findNearElement = (
     current: CanvasElement,
     elements: CanvasElement[]

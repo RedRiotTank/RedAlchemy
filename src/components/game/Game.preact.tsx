@@ -38,17 +38,22 @@ export default function Game() {
     loadElements();
   }, []);
 
-  const handleDiscovery = (newElement: AlchemyElement) => {
+  const handleDiscovery = (
+    newElement: AlchemyElement,
+    position?: { x: number; y: number }
+  ) => {
     setDiscovered((prev) => [...prev, newElement]);
     setElements((prev) => [...prev, newElement]);
 
-    // Agregar nuevo elemento al canvas con instanceId único
+    const x = position ? position.x : window.innerWidth / 2 - 50;
+    const y = position ? position.y : window.innerHeight / 2 - 50;
+
     setCanvasElements((prev) => [
       ...prev,
       {
         ...newElement,
-        x: window.innerWidth / 2 - 50,
-        y: window.innerHeight / 2 - 50,
+        x,
+        y,
         instanceId: generateInstanceId(),
       } as CanvasElement,
     ]);
@@ -61,11 +66,9 @@ export default function Game() {
     return await fuseElements(elementA, elementB);
   };
 
-  // Iniciar arrastre desde el panel
   const handleStartDragFromPanel = (element: AlchemyElement, e: MouseEvent) => {
     draggingFromPanelRef.current = element;
 
-    // Crear elemento fantasma
     ghostElementRef.current = document.createElement("div");
     ghostElementRef.current.className =
       "fixed text-4xl z-50 pointer-events-none";
@@ -74,12 +77,10 @@ export default function Game() {
     ghostElementRef.current.style.top = `${e.clientY - 24}px`;
     document.body.appendChild(ghostElementRef.current);
 
-    // Agregar listeners globales
     window.addEventListener("mousemove", handleGhostMouseMove);
     window.addEventListener("mouseup", handleGhostMouseUp);
   };
 
-  // Mover elemento fantasma
   const handleGhostMouseMove = (e: MouseEvent) => {
     if (ghostElementRef.current) {
       ghostElementRef.current.style.left = `${e.clientX - 24}px`;
@@ -87,11 +88,9 @@ export default function Game() {
     }
   };
 
-  // Soltar elemento fantasma
   const handleGhostMouseUp = (e: MouseEvent) => {
     if (!draggingFromPanelRef.current || !canvasRef.current) return;
 
-    // Verificar si se soltó sobre el canvas
     const canvasRect = canvasRef.current.getBoundingClientRect();
     if (
       e.clientX >= canvasRect.left &&
@@ -99,7 +98,6 @@ export default function Game() {
       e.clientY >= canvasRect.top &&
       e.clientY <= canvasRect.bottom
     ) {
-      // Agregar al canvas con instanceId único
       setCanvasElements((prev) => [
         ...prev,
         {
@@ -111,14 +109,12 @@ export default function Game() {
       ]);
     }
 
-    // Limpiar
     if (ghostElementRef.current) {
       document.body.removeChild(ghostElementRef.current);
       ghostElementRef.current = null;
     }
     draggingFromPanelRef.current = null;
 
-    // Remover listeners
     window.removeEventListener("mousemove", handleGhostMouseMove);
     window.removeEventListener("mouseup", handleGhostMouseUp);
   };
