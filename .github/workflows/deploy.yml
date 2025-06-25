@@ -20,9 +20,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Compile TypeScript
-        run: npx tsc --project tsconfig.scripts.json
-
       - name: Build Astro project
         run: npm run build
 
@@ -35,7 +32,7 @@ jobs:
           port: ${{ secrets.SSH_PORT }}
           script: |
             sudo rm -rf /opt/redalchemy/frontend/*
-            sudo mkdir -p /opt/redalchemy/frontend/scripts
+            sudo mkdir -p /opt/redalchemy/frontend
             sudo chown -R $USER:$USER /opt/redalchemy/frontend
             sudo chmod -R 755 /opt/redalchemy/frontend
 
@@ -49,16 +46,6 @@ jobs:
           source: "dist/"
           target: "/opt/redalchemy/frontend/"
           strip_components: 1
-
-      - name: Deploy compiled scripts via SCP
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SSH_PORT }}
-          source: "public/scripts/interaction.js"
-          target: "/opt/redalchemy/frontend/scripts/"
 
       - name: Reload Nginx
         uses: appleboy/ssh-action@v1.0.0

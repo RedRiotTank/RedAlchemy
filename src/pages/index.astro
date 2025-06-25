@@ -1,10 +1,8 @@
 ---
 import MainLayout from "../layouts/Layout.astro";
-import AlchemyCanvas from "../components/AlchemyCanvas.astro";
-import ElementsPanel from "../components/ElementsPanel.astro";
+import Game from "../components/game/Game.preact";
 ---
 
 <MainLayout>
-  <AlchemyCanvas />
-  <ElementsPanel />
+  <Game client:load />
 </MainLayout>
